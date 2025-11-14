@@ -1,3 +1,19 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Renviron
+*.Rproj
+*.R
+*.gif
+*.png
+Ex_11.nb.html
+*_Area.csv
+previous_index.html
+previous_previous_index.html
+*.jpg
+*.csv
+
 # History files
 .Rhistory
 .Rapp.history
