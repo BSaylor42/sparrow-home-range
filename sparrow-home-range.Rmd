@@ -1,0 +1,17 @@
+---
+title: "Sparrow Home Range"
+author: "Brianna Saylor"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+packages<-c("adehabitatHR","data.table","ggfortify","grid","move","moveVis","OpenStreetMap","pbapply","plotly","rgdal","sp","tidyverse","viridis", "dplyr")
+sapply(packages, library, character.only=T)
+```
+
+```{r}
+
+```
+
