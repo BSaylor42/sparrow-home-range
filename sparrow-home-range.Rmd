@@ -7,11 +7,27 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-packages<-c("adehabitatHR","data.table","ggfortify","grid","move","moveVis","OpenStreetMap","pbapply","plotly","rgdal","sp","tidyverse","viridis", "dplyr")
+packages<-c("adehabitatHR","data.table","ggfortify","grid","move","OpenStreetMap","pbapply","plotly","sp","tidyverse","viridis", "dplyr")
 sapply(packages, library, character.only=T)
+sparrow <- read.csv("locationsll.csv")
+# package moveVis not available for this version of R, trying without first
+# package rgdal not available for this version of R, trying without first
 ```
 
-```{r}
+```{r filter to one individual}
+nugget <- sparrow %>% 
+  filter(individual.local.identifier == "1E2D334C")
+```
+
+
+```{r convert to UTM, include=FALSE}
+library(sf)
+nugget <- st_as_sf(nugget, coords = c("location.long", "location.lat"), crs = 4326) |>
+  st_transform(crs = 32616)
+coords <- st_coordinates(nugget)
+nugget <- cbind(nugget, 
+                utm_easting = coords[, "X"],
+                utm_northing = coords[, "Y"])
 
 ```
 
