@@ -7,12 +7,14 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-packages<-c("adehabitatHR","data.table","ggfortify","grid","move","OpenStreetMap","pbapply","plotly","sp","tidyverse","viridis", "dplyr")
+packages<-c("adehabitatHR","data.table","ggfortify","grid","move","OpenStreetMap","pbapply","plotly","tidyverse","viridis", "dplyr", "ggspatial", "raster", "sf", "terra", "terrainr", "maps")
 sapply(packages, library, character.only=T)
 sparrow <- read.csv("locationsll.csv")
 # package moveVis not available for this version of R, trying without first
 # package rgdal not available for this version of R, trying without first
 ```
+
+White-throated sparrows are a winter resident in Tennessee. They are identifiable by their white throat and yellow patch in front of the eye. Their song is an iconic whistle in the winter often described as "O Sweet Canada." In the winter, they can be found in woods, forest edges, and shrubby fields. They will visit your bird feeder. 
 
 ```{r filter to one individual}
 nugget <- sparrow %>% 
@@ -23,11 +25,40 @@ nugget <- sparrow %>%
 ```{r convert to UTM, include=FALSE}
 library(sf)
 nugget <- st_as_sf(nugget, coords = c("location.long", "location.lat"), crs = 4326) |>
-  st_transform(crs = 32616)
+  st_transform(crs = 32616) # in library sf
 coords <- st_coordinates(nugget)
 nugget <- cbind(nugget, 
                 utm_easting = coords[, "X"],
                 utm_northing = coords[, "Y"])
+```
 
+Using plotly to check for any outliers in the dataset. 
+```{r plotly, echo=TRUE, fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+qaqc_plot <- ggplot() + geom_point(data=nugget, 
+                                   aes(utm_easting,utm_northing,
+                                       color=individual.local.identifier)) +
+                        labs(x="Easting", y="Northing") +
+                        guides(color=guide_legend("Identifier"))
+
+ggplotly(qaqc_plot)
+```
+
+
+```{r}
+ortho <- "emeraldhill.tif"
+
+image_stack <- raster::stack(ortho)
+
+crop_extent <- raster::extent(min(nugget$utm_easting-100), 
+                              max(nugget$utm_easting+100), 
+                              min(nugget$utm_northing-100), 
+                              max(nugget$utm_northing+100))
+
+
+image_crop <- crop(image_stack, crop_extent)
+
+emerald.hill <- as.data.frame(image_crop, xy = TRUE) %>% setNames(c("x", "y", "red", "green", "blue"))
+
+ggplot()+geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue))+coord_sf()
 ```
 
