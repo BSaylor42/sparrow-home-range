@@ -131,3 +131,24 @@ kde.plot + annotate("text", label = paste("95% ",round(ver95$area,2),"ha"),
                     fontface = "bold", size = 4, color = "white")
 ```
 
+```{r continuous time movement modeling}
+# remove sf attribrutes 
+nugget_df$geometry <- NULL
+class(nugget_df) <- setdiff(class(nugget_df), "sf")
+attr(nugget_df, "sf_column") <- NULL
+attr(nugget_df, "agr") <- NULL
+# convert to POSIXct
+nugget_df$timestamp <- as.POSIXct(nugget_df$timestamp, format="%Y-%m-%d %H:%M:%S", tz="UTC") 
+# remove duplicate times, need minimum 1 min intervals 
+nugget_df <- nugget_df[!duplicated(nugget_df$timestamp), ]
+nugget_df$geometry <- NULL
+# sort time stamps to make sure they are not out of order 
+nugget_df <- nugget_df[order(nugget_df$timestamp), ]
+# convert  to telemetry data
+utm16 <- CRS("+proj=utm +zone=16 +datum=WGS84 +units=m +no_defs")
+nugget.telem <- as.telemetry(nugget_df, 
+                             coords = c("utm_easting", "utm_northing"),
+                               projection = utm16)
+
+```
+
