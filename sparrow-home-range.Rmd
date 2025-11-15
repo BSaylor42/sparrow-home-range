@@ -43,7 +43,7 @@ ggplotly(qaqc_plot)
 ```
 
 
-```{r getting map imagery}
+```{r getting map imagery, include=FALSE}
 ortho <- "emeraldhill.tif"
 
 image_stack <- raster::stack(ortho)
@@ -61,7 +61,7 @@ emerald.hill <- as.data.frame(image_crop, xy = TRUE) %>% setNames(c("x", "y", "r
 ggplot()+geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue))+coord_sf()
 ```
 
-```{r}
+```{r minimum convex polygon, echo=TRUE, fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
 ## Data for a single individual
 nugget_df <- as.data.frame(nugget)
 xy <- c(as.data.frame(nugget_df$utm_easting),as.data.frame(nugget_df$utm_northing))
@@ -92,5 +92,42 @@ mcp.plot <- ggplot() + theme_bw() +
 
 mcp.plot + annotate("text", x = 467500, y = 4043640, label = paste(round(mcp.out@data$area,2),"ha"), 
                     fontface = "bold", size = 5, color = "white")
+```
+
+```{r kernel density, echo=TRUE, fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+x <- as.data.frame(nugget_df$utm_easting)
+y <- as.data.frame(nugget_df$utm_northing)
+xy <- c(x,y)
+
+## projecting the data to UTM
+data.proj <- SpatialPointsDataFrame(xy,nugget_df, proj4string = CRS("+proj=utm +zone=16 +datum=WGS84 +units=m +no_defs"))
+xy.sp <- SpatialPoints(data.proj@coords)
+
+## KDE analysis at 95, 85, 75
+kde<-kernelUD(xy.sp, h="href", kern="bivnorm", grid=100)
+ver95 <- getverticeshr(kde, 95)
+ver85 <- getverticeshr(kde, 85)
+ver75 <- getverticeshr(kde, 75)
+
+## converting to sf object and df
+kde.points <- cbind((data.frame(data.proj@coords)),nugget_df$individual.local.identifier)
+colnames(kde.points) <- c("x","y","identifier")
+kde95.sf <- st_as_sf(ver95)
+kde85.sf <- st_as_sf(ver85)
+kde75.sf <- st_as_sf(ver75)
+
+##making the plot
+kde.plot <- ggplot() + theme_bw() +
+  theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5)) + 
+  geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
+   geom_point(data=kde.points, aes(x=x, y=y), color = "lightgray") +
+  geom_sf(data=kde95.sf, fill = "blue", alpha = 0.5) +
+  geom_sf(data=kde85.sf, fill = "green", alpha = 0.4) +
+  geom_sf(data=kde75.sf, fill = "yellow", alpha = 0.3)  +
+  labs(x="Easting (m)", y="Northing (m)", title=kde.points$identifier) +
+  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5)) 
+  
+kde.plot + annotate("text", label = paste("95% ",round(ver95$area,2),"ha"), 
+                    fontface = "bold", size = 4, color = "white")
 ```
 
