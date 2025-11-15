@@ -7,8 +7,9 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-packages<-c("adehabitatHR","data.table","ggfortify","grid","move","OpenStreetMap","pbapply","plotly","tidyverse","viridis", "dplyr", "ggspatial", "raster", "sf", "terra", "terrainr", "maps")
-sapply(packages, library, character.only=T)
+#packages<-c("adehabitatHR","data.table","ggfortify","grid","move","OpenStreetMap","pbapply","plotly","tidyverse","viridis", "dplyr", "ggspatial", "raster", "sf", "terra", "terrainr", "maps")
+pacman::p_load("adehabitatHR", "ctmm", "pbapply", "raster", "sf", "sp", "terra", "terrainr", "tidyverse", "plotly")
+#sapply(packages, library, character.only=T)
 sparrow <- read.csv("locationsll.csv")
 # package moveVis not available for this version of R, trying without first
 # package rgdal not available for this version of R, trying without first
@@ -16,20 +17,18 @@ sparrow <- read.csv("locationsll.csv")
 
 White-throated sparrows are a winter resident in Tennessee. They are identifiable by their white throat and yellow patch in front of the eye. Their song is an iconic whistle in the winter often described as "O Sweet Canada." In the winter, they can be found in woods, forest edges, and shrubby fields. They will visit your bird feeder. 
 
-```{r filter to one individual}
-nugget <- sparrow %>% 
-  filter(individual.local.identifier == "1E2D334C")
-```
-
 
 ```{r convert to UTM, include=FALSE}
 library(sf)
-nugget <- st_as_sf(nugget, coords = c("location.long", "location.lat"), crs = 4326) |>
+sparrow <- st_as_sf(sparrow, coords = c("location.long", "location.lat"), crs = 4326) |>
   st_transform(crs = 32616) # in library sf
-coords <- st_coordinates(nugget)
-nugget <- cbind(nugget, 
+coords <- st_coordinates(sparrow)
+sparrow <- cbind(sparrow, 
                 utm_easting = coords[, "X"],
                 utm_northing = coords[, "Y"])
+
+nugget <- sparrow %>% 
+  filter(individual.local.identifier == "1E2D334C")
 ```
 
 Using plotly to check for any outliers in the dataset. 
@@ -44,15 +43,15 @@ ggplotly(qaqc_plot)
 ```
 
 
-```{r}
+```{r getting map imagery}
 ortho <- "emeraldhill.tif"
 
 image_stack <- raster::stack(ortho)
 
-crop_extent <- raster::extent(min(nugget$utm_easting-100), 
-                              max(nugget$utm_easting+100), 
-                              min(nugget$utm_northing-100), 
-                              max(nugget$utm_northing+100))
+crop_extent <- raster::extent(min(nugget$utm_easting-200), 
+                              max(nugget$utm_easting+200), 
+                              min(nugget$utm_northing-200), 
+                              max(nugget$utm_northing+200))
 
 
 image_crop <- crop(image_stack, crop_extent)
@@ -60,5 +59,38 @@ image_crop <- crop(image_stack, crop_extent)
 emerald.hill <- as.data.frame(image_crop, xy = TRUE) %>% setNames(c("x", "y", "red", "green", "blue"))
 
 ggplot()+geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue))+coord_sf()
+```
+
+```{r}
+## Data for a single individual
+nugget_df <- as.data.frame(nugget)
+xy <- c(as.data.frame(nugget_df$utm_easting),as.data.frame(nugget_df$utm_northing))
+xy <- as.data.frame(xy)
+
+## projecting the data to UTM
+data.proj <- SpatialPointsDataFrame(xy,nugget_df, proj4string = CRS("+proj=utm +zone=16 +datum=WGS84 +units=m +no_defs"))
+xy.sp <- SpatialPoints(data.proj@coords)
+
+## MCP analysis
+mcp.out <- mcp(xy.sp, percent=100, unout="ha")
+
+## converting mcp to sf object for ggplot and points to df
+mcp.sf <- st_as_sf(mcp.out)
+
+mcp.points <- cbind((data.frame(xy)),nugget_df$individual.local.identifier)
+colnames(mcp.points) <- c("x","y", "identifier")
+
+# MCP plot
+mcp.plot <- ggplot() + theme_bw() +
+  theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5)) + 
+  theme(panel.grid = element_blank()) +
+  geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
+  geom_sf(data=mcp.sf, alpha = 0.3) +
+  geom_point(data=mcp.points, aes(x=x, y=y), color = "lightblue")  +
+  labs(x="Easting (m)", y="Northing (m)", title=mcp.points$identifier) +
+  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5)) 
+
+mcp.plot + annotate("text", x = 467500, y = 4043640, label = paste(round(mcp.out@data$area,2),"ha"), 
+                    fontface = "bold", size = 5, color = "white")
 ```
 

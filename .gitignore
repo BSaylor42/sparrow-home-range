@@ -13,6 +13,7 @@ previous_index.html
 previous_previous_index.html
 *.jpg
 *.csv
+*.tif
 
 # History files
 .Rhistory
