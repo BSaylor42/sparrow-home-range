@@ -42,25 +42,6 @@ qaqc_plot <- ggplot() + geom_point(data=nugget,
 ggplotly(qaqc_plot)
 ```
 
-```{r terrainr imagery}
-map_points <- data.frame(
-  lat = runif(10000, min = 36.536184, max = 36.540977),
-  lng = runif(10000, min = -87.362532, max = -87.357254))
-map_points <- sf::st_as_sf(map_points, coords = c("lng", "lat"))
-map_points <- sf::st_set_crs(map_points, 4326)
-output_files <- get_tiles(map_points,
-                          resolution = 1,
-                          output_prefix = "tiff",
-                          services = c("ortho", "elevation"))
-tiff <- "tiff_USGSNAIPPlus_1_1.tif"
-image_stack <- stack(tiff)
-
-image_rgb <- as.data.frame(image_stack, xy = TRUE) %>% setNames(c("x", "y", "red", "green", "blue", "alpha"))
-ggplot()+geom_spatial_rgb(data = image_rgb, aes(x=x, y=y, r=red, g=green, b=blue)) +
-  labs(x="Longtiude", y="Latitude") + theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5)) + coord_sf(xlim = c(-87.362532, -87.357254),  ylim = c(36.536184, 36.540977))
-```
-
-
 ```{r getting map imagery, include=FALSE}
 ortho <- "clarksville.tif"
 
