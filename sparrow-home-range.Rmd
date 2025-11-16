@@ -87,7 +87,7 @@ mcp.plot <- ggplot() + theme_bw() +
   geom_sf(data=mcp.sf, alpha = 0.3) +
   geom_point(data=mcp.points, aes(x=x, y=y), color = "orange2")  +
   labs(x="Easting (m)", y="Northing (m)", title=mcp.points$identifier) +
-  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5)) 
+  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5), panel.grid = element_blank()) 
 
 mcp.plot + annotate("text", x = 467400, y = 4043640, label = paste(round(mcp.out@data$area,2),"ha"), 
                     fontface = "bold", size = 5, color = "white")
@@ -124,7 +124,7 @@ kde.plot <- ggplot() + theme_bw() +
   geom_sf(data=kde85.sf, fill = "green", alpha = 0.3) +
   geom_sf(data=kde75.sf, fill = "yellow", alpha = 0.2)  +
   labs(x="Easting (m)", y="Northing (m)", title=kde.points$identifier) +
-  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5)) 
+  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5), panel.grid = element_blank()) 
   
 kde.plot <- kde.plot + annotate("text", x = 467500, y = 4043640, label = paste("95% ",round(ver95$area,2),"ha"), 
                     fontface = "bold", size = 5, color = "white")
@@ -136,13 +136,28 @@ kde.only.plot <- ggplot() + theme_bw() +
   geom_sf(data=kde85.sf, fill = "green", alpha = 0.3) +
   geom_sf(data=kde75.sf, fill = "yellow", alpha = 0.2)  +
   labs(x="Easting (m)", y="Northing (m)", title=kde.points$identifier) +
-  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5)) 
+  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5), panel.grid = element_blank()) 
 
 kde.only.plot <- kde.only.plot + annotate("text", x = 467500, y = 4043640, label = paste("95%",round(ver95$area,2),"ha"),
                     fontface = "bold", size = 5, color = "white")
 
 kde.plot + kde.only.plot
 ```
+
+```{r compare mcp to kde, echo=TRUE, fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+mcp.kde.plot <- ggplot() + theme_bw() +
+  theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5)) + 
+  geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
+  geom_sf(data=mcp.sf, alpha = 0.3) +
+  geom_sf(data=kde95.sf, fill = "blue", alpha = 0.4) +
+  geom_sf(data=kde85.sf, fill = "green", alpha = 0.3) +
+  geom_sf(data=kde75.sf, fill = "yellow", alpha = 0.2)  +
+  labs(x="Easting (m)", y="Northing (m)", title=kde.points$identifier) +
+  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5), panel.grid = element_blank())
+
+mcp.kde.plot
+```
+
 
 ```{r continuous time movement modeling}
 # remove sf attribrutes 
