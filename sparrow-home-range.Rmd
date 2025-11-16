@@ -8,7 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 #packages<-c("adehabitatHR","data.table","ggfortify","grid","move","OpenStreetMap","pbapply","plotly","tidyverse","viridis", "dplyr", "ggspatial", "raster", "sf", "terra", "terrainr", "maps")
-pacman::p_load("adehabitatHR", "ctmm", "pbapply", "raster", "sf", "sp", "terra", "terrainr", "tidyverse", "plotly")
+pacman::p_load("adehabitatHR", "ctmm", "pbapply", "raster", "sf", "sp", "terra", "terrainr", "tidyverse", "plotly", "patchwork")
 #sapply(packages, library, character.only=T)
 sparrow <- read.csv("locationsll.csv")
 # package moveVis not available for this version of R, trying without first
@@ -93,7 +93,7 @@ mcp.plot + annotate("text", x = 467400, y = 4043640, label = paste(round(mcp.out
                     fontface = "bold", size = 5, color = "white")
 ```
 
-```{r kernel density, echo=TRUE, fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+```{r kernel density, echo=TRUE, fig.height=8, fig.width=10, message=FALSE, warning=FALSE}
 x <- as.data.frame(nugget_df$utm_easting)
 y <- as.data.frame(nugget_df$utm_northing)
 xy <- c(x,y)
@@ -120,14 +120,28 @@ kde.plot <- ggplot() + theme_bw() +
   theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5)) + 
   geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
    geom_point(data=kde.points, aes(x=x, y=y), color = "lightgray") +
-  geom_sf(data=kde95.sf, fill = "blue", alpha = 0.5) +
-  geom_sf(data=kde85.sf, fill = "green", alpha = 0.4) +
-  geom_sf(data=kde75.sf, fill = "yellow", alpha = 0.3)  +
+  geom_sf(data=kde95.sf, fill = "blue", alpha = 0.4) +
+  geom_sf(data=kde85.sf, fill = "green", alpha = 0.3) +
+  geom_sf(data=kde75.sf, fill = "yellow", alpha = 0.2)  +
   labs(x="Easting (m)", y="Northing (m)", title=kde.points$identifier) +
   theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5)) 
   
-kde.plot + annotate("text", label = paste("95% ",round(ver95$area,2),"ha"), 
-                    fontface = "bold", size = 4, color = "white")
+kde.plot <- kde.plot + annotate("text", x = 467500, y = 4043640, label = paste("95% ",round(ver95$area,2),"ha"), 
+                    fontface = "bold", size = 5, color = "white")
+ 
+kde.only.plot <- ggplot() + theme_bw() +
+  theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5)) + 
+  geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
+  geom_sf(data=kde95.sf, fill = "blue", alpha = 0.4) +
+  geom_sf(data=kde85.sf, fill = "green", alpha = 0.3) +
+  geom_sf(data=kde75.sf, fill = "yellow", alpha = 0.2)  +
+  labs(x="Easting (m)", y="Northing (m)", title=kde.points$identifier) +
+  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5)) 
+
+kde.only.plot <- kde.only.plot + annotate("text", x = 467500, y = 4043640, label = paste("95%",round(ver95$area,2),"ha"),
+                    fontface = "bold", size = 5, color = "white")
+
+kde.plot + kde.only.plot
 ```
 
 ```{r continuous time movement modeling}
