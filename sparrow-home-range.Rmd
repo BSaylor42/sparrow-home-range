@@ -2,40 +2,51 @@
 title: "Sparrow Home Range"
 author: "Brianna Saylor"
 date: "`r Sys.Date()`"
-output: html_document
+output: 
+  html_document:
+    toc: TRUE
+    toc_float: TRUE
+wrap: sentence
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-#packages<-c("adehabitatHR","data.table","ggfortify","grid","move","OpenStreetMap","pbapply","plotly","tidyverse","viridis", "dplyr", "ggspatial", "raster", "sf", "terra", "terrainr", "maps")
 pacman::p_load("adehabitatHR", "ctmm", "pbapply", "raster", "sf", "sp", "terra", "terrainr", "tidyverse", "plotly", "patchwork")
-#sapply(packages, library, character.only=T)
 sparrow <- read.csv("locationsll.csv")
-# package moveVis not available for this version of R, trying without first
-# package rgdal not available for this version of R, trying without first
 ```
 
-White-throated sparrows are a winter resident in Tennessee. They are identifiable by their white throat and yellow patch in front of the eye. Their song is an iconic whistle in the winter often described as "O Sweet Canada." In the winter, they can be found in woods, forest edges, and shrubby fields. They will visit your bird feeder. 
+## Dataset 
+
+White-throated sparrows are a common winter songbird throughout the southern United States. As the name suggests, they are easily recognizable by their white throats. Their song is an iconic whistle often described as "O Sweet Canada." They can be found in woods, forest edges, shrubby fields, and at bird feeders. White-throated sparrows have tan striped and white striped color morphs which differ in behavior. 
+
+Emerald Hill is a popular daytime hangout for white-throated sparrows. Several individuals have been tagged with telemetry units to understand their movement patterns and habitat use. For this exercise, I will be looking at the home range of the individual 1E2D334C who I have nicknamed Nugget. 
+
+<center>
+<iframe src="https://macaulaylibrary.org/asset/645319050/embed" height="370" width="640" frameborder="0" allowfullscreen></iframe>
+</center>
+
+<center>
+<iframe src="https://macaulaylibrary.org/asset/645329652/embed" height="430" width="320" frameborder="0" allowfullscreen></iframe>
+<iframe src="https://macaulaylibrary.org/asset/645267905/embed" height="430" width="320" frameborder="0" allowfullscreen></iframe>
+</center>
 
 
 ```{r convert to UTM, include=FALSE}
-library(sf)
+library(sf) # convert coordinates to UTM
 sparrow <- st_as_sf(sparrow, coords = c("location.long", "location.lat"), crs = 4326) |>
   st_transform(crs = 32616) # in library sf
 coords <- st_coordinates(sparrow)
 sparrow <- cbind(sparrow, 
                 utm_easting = coords[, "X"],
                 utm_northing = coords[, "Y"])
-
+# filter to one individual
 nugget <- sparrow %>% 
   filter(individual.local.identifier == "1E2D334C")
 ```
 
-Using plotly to check for any outliers in the dataset. 
+First, I will take a quick look at the spread of the data to check for any outliers. 
 ```{r plotly, echo=TRUE, fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
-qaqc_plot <- ggplot() + geom_point(data=nugget, 
-                                   aes(utm_easting,utm_northing,
-                                       color=individual.local.identifier)) +
+qaqc_plot <- ggplot() + geom_point(data=nugget, aes(utm_easting,utm_northing), color = "orange2") +
                         labs(x="Easting", y="Northing") +
                         guides(color=guide_legend("Identifier"))
 
@@ -59,8 +70,10 @@ emerald.hill <- as.data.frame(image_crop, xy = TRUE) %>% setNames(c("x", "y", "r
 
 ggplot()+geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue))+coord_sf()
 ```
+## Minimum Convex Polygon
 
-```{r minimum convex polygon, echo=TRUE, fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+Next, I will look at the home range of Nugget. For this analysis I am using minimum convex polygon to determine the minimum bounding geometry of the space used by Nugget. 
+```{r minimum convex polygon, echo=TRUE, fig.height=6, fig.width=8, message=FALSE, warning=FALSE, fig.align='center'}
 ## Data for a single individual
 nugget_df <- as.data.frame(nugget)
 xy <- c(as.data.frame(nugget_df$utm_easting),as.data.frame(nugget_df$utm_northing))
@@ -75,7 +88,6 @@ mcp.out <- mcp(xy.sp, percent=100, unout="ha")
 
 ## converting mcp to sf object for ggplot and points to df
 mcp.sf <- st_as_sf(mcp.out)
-
 mcp.points <- cbind((data.frame(xy)),nugget_df$individual.local.identifier)
 colnames(mcp.points) <- c("x","y", "identifier")
 
@@ -92,8 +104,12 @@ mcp.plot <- ggplot() + theme_bw() +
 mcp.plot + annotate("text", x = 467400, y = 4043640, label = paste(round(mcp.out@data$area,2),"ha"), 
                     fontface = "bold", size = 5, color = "white")
 ```
+It appears that Nugget uses a small portion of emerald hill about 10 ha in size mostly in wooded areas. 
 
-```{r kernel density, echo=TRUE, fig.height=8, fig.width=10, message=FALSE, warning=FALSE}
+## Kernel-Density Estimation 
+
+Which areas does Nugget use more? Let's look at Nugget's frequency of use with kernel-density estimation. I used 95% KDE (blue), 75% KDE (green), and 50% KDE (yellow). 
+```{r kernel density, echo=TRUE, fig.height=6, fig.width=8, message=FALSE, warning=FALSE, fig.align='center'}
 x <- as.data.frame(nugget_df$utm_easting)
 y <- as.data.frame(nugget_df$utm_northing)
 xy <- c(x,y)
@@ -107,6 +123,7 @@ kde<-kernelUD(xy.sp, h="href", kern="bivnorm", grid=100)
 ver95 <- getverticeshr(kde, 95)
 ver85 <- getverticeshr(kde, 85)
 ver75 <- getverticeshr(kde, 75)
+ver50 <- getverticeshr(kde, 50)
 
 ## converting to sf object and df
 kde.points <- cbind((data.frame(data.proj@coords)),nugget_df$individual.local.identifier)
@@ -114,6 +131,7 @@ colnames(kde.points) <- c("x","y","identifier")
 kde95.sf <- st_as_sf(ver95)
 kde85.sf <- st_as_sf(ver85)
 kde75.sf <- st_as_sf(ver75)
+kde50.sf <- st_as_sf(ver50)
 
 ##making the plot
 kde.plot <- ggplot() + theme_bw() +
@@ -121,43 +139,61 @@ kde.plot <- ggplot() + theme_bw() +
   geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
    geom_point(data=kde.points, aes(x=x, y=y), color = "lightgray") +
   geom_sf(data=kde95.sf, fill = "blue", alpha = 0.4) +
-  geom_sf(data=kde85.sf, fill = "green", alpha = 0.3) +
-  geom_sf(data=kde75.sf, fill = "yellow", alpha = 0.2)  +
+  geom_sf(data=kde75.sf, fill = "green", alpha = 0.3) +
+  geom_sf(data=kde50.sf, fill = "yellow", alpha = 0.2)  +
   labs(x="Easting (m)", y="Northing (m)", title=kde.points$identifier) +
-  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5), panel.grid = element_blank()) 
+  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5), panel.grid = element_blank()) + 
+  scale_y_continuous(n.breaks = 4)
   
 kde.plot <- kde.plot + annotate("text", x = 467500, y = 4043640, label = paste("95% ",round(ver95$area,2),"ha"), 
-                    fontface = "bold", size = 5, color = "white")
+                    fontface = "bold", size = 5, color = "white") 
  
 kde.only.plot <- ggplot() + theme_bw() +
   theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5)) + 
   geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
   geom_sf(data=kde95.sf, fill = "blue", alpha = 0.4) +
-  geom_sf(data=kde85.sf, fill = "green", alpha = 0.3) +
-  geom_sf(data=kde75.sf, fill = "yellow", alpha = 0.2)  +
+  geom_sf(data=kde75.sf, fill = "green", alpha = 0.3) +
+  geom_sf(data=kde50.sf, fill = "yellow", alpha = 0.2)  +
   labs(x="Easting (m)", y="Northing (m)", title=kde.points$identifier) +
-  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5), panel.grid = element_blank()) 
+  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5), panel.grid = element_blank()) + 
+  scale_y_continuous(n.breaks = 4)
 
 kde.only.plot <- kde.only.plot + annotate("text", x = 467500, y = 4043640, label = paste("95%",round(ver95$area,2),"ha"),
-                    fontface = "bold", size = 5, color = "white")
+                    fontface = "bold", size = 5, color = "white") 
 
-kde.plot + kde.only.plot
+kde.plot + kde.only.plot 
 ```
+Using a 95% KDE, Nuggets range shrinks by half from 9.85 to 4.36 ha. 
 
-```{r compare mcp to kde, echo=TRUE, fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+<br> 
+
+## Nugget's Home Range
+
+Now let's compare the minimum convex polygon to the kernel-density estimation to get a feel of where Nugget likes to hang out at Emerald Hill. 
+```{r compare mcp to kde, echo=TRUE, fig.height=8, fig.width=10, message=FALSE, warning=FALSE, fig.align='center'}
 mcp.kde.plot <- ggplot() + theme_bw() +
   theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5)) + 
   geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
   geom_sf(data=mcp.sf, alpha = 0.3) +
   geom_sf(data=kde95.sf, fill = "blue", alpha = 0.4) +
-  geom_sf(data=kde85.sf, fill = "green", alpha = 0.3) +
-  geom_sf(data=kde75.sf, fill = "yellow", alpha = 0.2)  +
+  geom_sf(data=kde75.sf, fill = "green", alpha = 0.3) +
+  geom_sf(data=kde50.sf, fill = "yellow", alpha = 0.2)  +
   labs(x="Easting (m)", y="Northing (m)", title=kde.points$identifier) +
   theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5), panel.grid = element_blank())
 
+mcp.kde.plot <- mcp.kde.plot + 
+  annotate("text", x = 467450, y = 4044100, label = paste("MCP",round(mcp.out@data$area,2),"ha"),
+                    fontface = "bold", size = 4, color = "black") +
+  annotate("text", x = 467450, y = 4044075, label = paste("95%",round(ver95$area,2),"ha"),
+                    fontface = "bold", size = 4, color = "black") + 
+  annotate("text", x = 467450, y = 4044050, label = paste("75%",round(ver75$area,2),"ha"),
+                    fontface = "bold", size = 4, color = "black")  + 
+  annotate("text", x = 467450, y = 4044025, label = paste("50%",round(ver50$area,2),"ha"),
+                    fontface = "bold", size = 4, color = "black")
+
 mcp.kde.plot
 ```
-
+As seen from the map, Nugget prefers to spend time in the woods in the eastern portion of Emerald Hill. It is interesting to note that Nugget spends 50% of their time on an area less than 1 ha. Going forward, it would be interesting to see how the ranges of other sparrows on Emerald Hill overlap with Nugget. 
 
 ```{r continuous time movement modeling}
 # remove sf attribrutes 
