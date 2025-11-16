@@ -62,7 +62,7 @@ ggplot()+geom_spatial_rgb(data = image_rgb, aes(x=x, y=y, r=red, g=green, b=blue
 
 
 ```{r getting map imagery, include=FALSE}
-ortho <- "emeraldhill.tif"
+ortho <- "clarksville.tif"
 
 image_stack <- raster::stack(ortho)
 
@@ -104,11 +104,11 @@ mcp.plot <- ggplot() + theme_bw() +
   theme(panel.grid = element_blank()) +
   geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
   geom_sf(data=mcp.sf, alpha = 0.3) +
-  geom_point(data=mcp.points, aes(x=x, y=y), color = "lightblue")  +
+  geom_point(data=mcp.points, aes(x=x, y=y), color = "orange2")  +
   labs(x="Easting (m)", y="Northing (m)", title=mcp.points$identifier) +
   theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5)) 
 
-mcp.plot + annotate("text", x = 467500, y = 4043640, label = paste(round(mcp.out@data$area,2),"ha"), 
+mcp.plot + annotate("text", x = 467400, y = 4043640, label = paste(round(mcp.out@data$area,2),"ha"), 
                     fontface = "bold", size = 5, color = "white")
 ```
 
