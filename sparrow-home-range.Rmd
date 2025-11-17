@@ -195,25 +195,77 @@ mcp.kde.plot
 ```
 As seen from the map, Nugget prefers to spend time in the woods in the eastern portion of Emerald Hill. It is interesting to note that Nugget spends 50% of their time on an area less than 1 ha. Going forward, it would be interesting to see how the ranges of other sparrows on Emerald Hill overlap with Nugget. 
 
-```{r continuous time movement modeling}
-# remove sf attribrutes 
-nugget_df$geometry <- NULL
-class(nugget_df) <- setdiff(class(nugget_df), "sf")
-attr(nugget_df, "sf_column") <- NULL
-attr(nugget_df, "agr") <- NULL
-nugget_df$x <- nugget_df$utm_easting
-nugget_df$y <- nugget_df$utm_northing
-# convert to POSIXct
-nugget_df$timestamp <- as.POSIXct(nugget_df$timestamp, format="%Y-%m-%d %H:%M:%S", tz="UTC") 
-# remove duplicate times, need minimum 1 min intervals 
-nugget_df <- nugget_df[!duplicated(nugget_df$timestamp), ]
-# sort time stamps to make sure they are not out of order 
-nugget_df <- nugget_df[order(nugget_df$timestamp), ]
-# convert  to telemetry data
-utm16 <- CRS("+proj=utm +zone=16 +datum=WGS84 +units=m +no_defs")
-nugget.telem <- as.telemetry(nugget_df, 
+## Continuous-Time Movement Modeling
+
+```{r comments, include=FALSE}
+# for the next section I had to end up reading in the original dataset again because after converting the points to UTM I had too many errors I could not fix. converting the UTM points to as.telemetry for some reason it could not identify the correct UTM zone. 
+```
+
+
+```{r wAKDE, echo=TRUE, fig.height=8, fig.width=10, message=FALSE, warning=FALSE, fig.align='center'}
+# read in original dataset and filter to individual
+sparrow2 <- read.csv("locationsll.csv")
+nugget2 <- sparrow2 %>% 
+  filter(individual.local.identifier == "1E2D334C")
+
+# convert to telemetry data
+nugget.telem <- as.telemetry(nugget2, 
                              coords = c("x", "y"),
                                projection = "+proj=utm +zone=16 +datum=WGS84 +units=m +no_defs")
 
+# calculate fit object
+nugget.guess <- ctmm.guess(nugget.telem, interactive=FALSE)
+
+# compute akde and get summary information, note this will take time to run code
+nugget.ouf <- ctmm.fit(nugget.telem, nugget.guess)
+wAKDE.nugget <- akde(nugget.telem, nugget.ouf, weights=TRUE)
+```
+The graph shows the weighted autocorrelated kernel density estimate (wAKDE) which estimated the animal's space use while accounting for location error and temporal autocorrelation. Nugget's wAKDE is very flat mostly indicating mostly regular fixes on GPS. The sudden rise at the right of the graph indicated a few long gaps occurred where the GPS lost signal. This is probably due to Nugget leaving Emerald Hill in the evening to go sleep in another location. 
+
+```{r utilization distribution map, echo=TRUE, fig.height=6, fig.width=8, message=FALSE, warning=FALSE, fig.align='center'}
+# for home range estimate CI
+summary(wAKDE.nugget)
+# clean simple version
+wAKDE1 <- plot(wAKDE.nugget)
+```
+
+```{r wADKE conversion, echo=TRUE, warning=FALSE}
+# convert to SPDF to convert to sf object for plotting in ggplot
+ud.sp <- SpatialPolygonsDataFrame.UD(wAKDE.nugget)
+ud.sf <- st_as_sf(ud.sp)
+
+nugget.sf <- st_as_sf(nugget_df, coords = c("utm_easting","utm_northing")) %>% st_set_crs(32647)
+
+# adke summary data
+akde.summary <- summary(wAKDE.nugget)
+akde.summary[["CI"]][3]
+```
+
+```{r ggplot wADKE, echo=TRUE, fig.height=8, fig.width=10, message=FALSE, warning=FALSE, fig.align='center'}
+# ggplot for akde
+ctmm.akde.1 <- ggplot() + geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
+  geom_point(data=mcp.points, aes(x=x, y=y), color = "lightgray")  +
+  geom_sf(data = ud.sf[3,], fill = "blue", alpha = 0.4)  +
+  geom_sf(data = ud.sf[2,], fill = "green", alpha = 0.3) + 
+  geom_sf(data = ud.sf[1,], fill = "yellow", alpha = 0.2) +
+  labs(x="Longitude", y="Latitude", title = nugget_df$individual.local.identifier) +
+  theme_bw() + theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5)) +
+  theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5), panel.grid = element_blank())
+ctmm.akde.1 <- ctmm.akde.1 + annotate("text", x = 467500, y = 4043640, 
+                     label = paste("Area ",round(akde.summary[["CI"]][3],2)," sqkm"),
+                     fontface = "bold", size = 5, color = "white")
+
+ctmm.akde.2 <- ggplot() + geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
+  geom_sf(data = ud.sf[3,], fill = "blue", alpha = 0.4)  +
+  geom_sf(data = ud.sf[2,], fill = "green", alpha = 0.3) + 
+  geom_sf(data = ud.sf[1,], fill = "yellow", alpha = 0.2) +
+  labs(x="Longitude", y="Latitude", title = nugget_df$individual.local.identifier) +
+  theme_bw() + theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5)) +
+  theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5), panel.grid = element_blank())
+ctmm.akde.2 <- ctmm.akde.2 + annotate("text", x = 467500, y = 4043640, 
+                     label = paste("Area ",round(akde.summary[["CI"]][3],2)," sqkm"),
+                     fontface = "bold", size = 5, color = "white")
+
+ctmm.akde.1 + ctmm.akde.2
 ```
 
