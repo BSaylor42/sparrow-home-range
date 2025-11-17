@@ -167,7 +167,7 @@ Using a 95% KDE, Nuggets range shrinks by half from 9.85 to 4.36 ha.
 
 <br> 
 
-## Nugget's Home Range
+## MCP VS KDE
 
 Now let's compare the minimum convex polygon to the kernel-density estimation to get a feel of where Nugget likes to hang out at Emerald Hill. 
 ```{r compare mcp to kde, echo=TRUE, fig.height=8, fig.width=10, message=FALSE, warning=FALSE, fig.align='center'}
@@ -250,7 +250,8 @@ ctmm.akde.1 <- ggplot() + geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=
   geom_sf(data = ud.sf[1,], fill = "yellow", alpha = 0.2) +
   labs(x="Longitude", y="Latitude", title = nugget_df$individual.local.identifier) +
   theme_bw() + theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5)) +
-  theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5), panel.grid = element_blank())
+  theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5), panel.grid = element_blank()) + 
+  scale_y_continuous(n.breaks = 5)
 ctmm.akde.1 <- ctmm.akde.1 + annotate("text", x = 467500, y = 4043640, 
                      label = paste("Area ",round(akde.summary[["CI"]][3],2)," sqkm"),
                      fontface = "bold", size = 5, color = "white")
@@ -261,11 +262,59 @@ ctmm.akde.2 <- ggplot() + geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=
   geom_sf(data = ud.sf[1,], fill = "yellow", alpha = 0.2) +
   labs(x="Longitude", y="Latitude", title = nugget_df$individual.local.identifier) +
   theme_bw() + theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5)) +
-  theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5), panel.grid = element_blank())
+  theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5), panel.grid = element_blank()) + 
+  scale_y_continuous(n.breaks = 5)
 ctmm.akde.2 <- ctmm.akde.2 + annotate("text", x = 467500, y = 4043640, 
                      label = paste("Area ",round(akde.summary[["CI"]][3],2)," sqkm"),
                      fontface = "bold", size = 5, color = "white")
 
 ctmm.akde.1 + ctmm.akde.2
+```
+
+## Comparison of Methods 
+
+```{r comparison graphs, include=FALSE}
+location.plot <- ggplot() + theme_bw() +
+  theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5)) + 
+  theme(panel.grid = element_blank()) +
+  geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
+  geom_point(data=mcp.points, aes(x=x, y=y), color = "orange2")  +
+  labs(x="Easting (m)", y="Northing (m)", title="Occurrence Points") +
+  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5), panel.grid = element_blank()) + 
+  scale_y_continuous(n.breaks = 5)
+location.plot
+mcp.plot.2 <- ggplot() + theme_bw() +
+  theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5)) + 
+  theme(panel.grid = element_blank()) +
+  geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
+  geom_sf(data=mcp.sf, alpha = 0.3) +
+  labs(x="Easting (m)", y="Northing (m)", title="Minimum Convex Polygon") +
+  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5), panel.grid = element_blank()) + 
+  scale_y_continuous(n.breaks = 5)
+mcp.plot.2
+kde.only.plot.2 <- ggplot() + theme_bw() +
+  theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5)) + 
+  geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
+  geom_sf(data=kde95.sf, fill = "blue", alpha = 0.4) +
+  geom_sf(data=kde75.sf, fill = "green", alpha = 0.3) +
+  geom_sf(data=kde50.sf, fill = "yellow", alpha = 0.2)  +
+  labs(x="Easting (m)", y="Northing (m)", title="Kernel-Density Estimation") +
+  theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5), panel.grid = element_blank()) + 
+  scale_y_continuous(n.breaks = 5)
+kde.only.plot.2
+ctmm.akde.3 <- ggplot() + geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
+  geom_sf(data = ud.sf[3,], fill = "blue", alpha = 0.4)  +
+  geom_sf(data = ud.sf[2,], fill = "green", alpha = 0.3) + 
+  geom_sf(data = ud.sf[1,], fill = "yellow", alpha = 0.2) +
+  labs(x="Longitude", y="Latitude", title = "Continuous-Time Movement Modeling") +
+  theme_bw() + theme(legend.position="none", plot.title = element_text(face = "bold", hjust = 0.5)) +
+  theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5), panel.grid = element_blank()) + 
+  scale_y_continuous(n.breaks = 5)
+ctmm.akde.3
+```
+
+
+```{r comparison, echo=TRUE, fig.height=8, fig.width=10, message=FALSE, warning=FALSE, fig.align='center'}
+location.plot + mcp.plot.2 + kde.only.plot.2 + ctmm.akde.3
 ```
 
