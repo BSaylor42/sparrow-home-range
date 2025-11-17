@@ -19,17 +19,9 @@ sparrow <- read.csv("locationsll.csv")
 
 White-throated sparrows are a common winter songbird throughout the southern United States. As the name suggests, they are easily recognizable by their white throats. Their song is an iconic whistle often described as "O Sweet Canada." They can be found in woods, forest edges, shrubby fields, and at bird feeders. White-throated sparrows have tan striped and white striped color morphs which differ in behavior. 
 
-Emerald Hill is a popular daytime hangout for white-throated sparrows. Several individuals have been tagged with telemetry units to understand their movement patterns and habitat use. For this exercise, I will be looking at the home range of the individual 1E2D334C who I have nicknamed Nugget. 
-
 <center>
 <iframe src="https://macaulaylibrary.org/asset/645319050/embed" height="370" width="640" frameborder="0" allowfullscreen></iframe>
 </center>
-
-<center>
-<iframe src="https://macaulaylibrary.org/asset/645329652/embed" height="430" width="320" frameborder="0" allowfullscreen></iframe>
-<iframe src="https://macaulaylibrary.org/asset/645267905/embed" height="430" width="320" frameborder="0" allowfullscreen></iframe>
-</center>
-
 
 ```{r convert to UTM, include=FALSE}
 library(sf) # convert coordinates to UTM
@@ -43,6 +35,8 @@ sparrow <- cbind(sparrow,
 nugget <- sparrow %>% 
   filter(individual.local.identifier == "1E2D334C")
 ```
+
+Emerald Hill is a popular daytime hangout for white-throated sparrows. Several individuals have been tagged with telemetry units to understand their movement patterns and habitat use. For this exercise, I will be looking at the home range of the individual 1E2D334C who I have nicknamed Nugget.
 
 First, I will take a quick look at the spread of the data to check for any outliers. 
 ```{r plotly, echo=TRUE, fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
@@ -104,7 +98,7 @@ mcp.plot <- ggplot() + theme_bw() +
 mcp.plot + annotate("text", x = 467400, y = 4043640, label = paste(round(mcp.out@data$area,2),"ha"), 
                     fontface = "bold", size = 5, color = "white")
 ```
-It appears that Nugget uses a small portion of emerald hill about 10 ha in size mostly in wooded areas. 
+It appears that Nugget uses a small portion of emerald hill about 10 ha in size mostly in wooded areas. Some of Nugget's range extends into the mowed lawn of Emerald Hill and the residential neighborhood next door. 
 
 ## Kernel-Density Estimation 
 
@@ -163,14 +157,14 @@ kde.only.plot <- kde.only.plot + annotate("text", x = 467500, y = 4043640, label
 
 kde.plot + kde.only.plot 
 ```
-Using a 95% KDE, Nuggets range shrinks by half from 9.85 to 4.36 ha. 
+Using a 95% KDE, Nuggets range shrinks by half from 9.85 ha to 4.36 ha. 
 
 <br> 
 
-## MCP VS KDE
+## MCP vs KDE
 
 Now let's compare the minimum convex polygon to the kernel-density estimation to get a feel of where Nugget likes to hang out at Emerald Hill. 
-```{r compare mcp to kde, echo=TRUE, fig.height=8, fig.width=10, message=FALSE, warning=FALSE, fig.align='center'}
+```{r compare mcp to kde, echo=FALSE, fig.align='center', fig.height=8, fig.width=10, message=FALSE, warning=FALSE}
 mcp.kde.plot <- ggplot() + theme_bw() +
   theme(axis.text.y = element_text(angle = 90, hjust = 0.5, vjust = 0.5)) + 
   geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
@@ -197,6 +191,8 @@ As seen from the map, Nugget prefers to spend time in the woods in the eastern p
 
 ## Continuous-Time Movement Modeling
 
+Now I will look at how the home range estimation changes when I account for the time between data points. 
+
 ```{r comments, include=FALSE}
 # for the next section I had to end up reading in the original dataset again because after converting the points to UTM I had too many errors I could not fix. converting the UTM points to as.telemetry for some reason it could not identify the correct UTM zone. 
 ```
@@ -220,7 +216,7 @@ nugget.guess <- ctmm.guess(nugget.telem, interactive=FALSE)
 nugget.ouf <- ctmm.fit(nugget.telem, nugget.guess)
 wAKDE.nugget <- akde(nugget.telem, nugget.ouf, weights=TRUE)
 ```
-The graph shows the weighted autocorrelated kernel density estimate (wAKDE) which estimated the animal's space use while accounting for location error and temporal autocorrelation. Nugget's wAKDE is very flat mostly indicating mostly regular fixes on GPS. The sudden rise at the right of the graph indicated a few long gaps occurred where the GPS lost signal. This is probably due to Nugget leaving Emerald Hill in the evening to go sleep in another location. 
+The graph shows the weighted autocorrelated kernel density estimate (wAKDE) which estimates the animal's space use while accounting for location error and temporal autocorrelation. Nugget's wAKDE is very flat indicating mostly regular fixes on the GPS. The sudden rise at the right of the graph indicates a few long gaps occurred where the GPS lost signal. This is probably due to Nugget leaving Emerald Hill in the evening to go sleep in another location. 
 
 ```{r utilization distribution map, echo=TRUE, fig.height=6, fig.width=8, message=FALSE, warning=FALSE, fig.align='center'}
 # for home range estimate CI
@@ -228,6 +224,7 @@ summary(wAKDE.nugget)
 # clean simple version
 wAKDE1 <- plot(wAKDE.nugget)
 ```
+From this graph, we can see that the confidence interval for the 95% range is close together. This is likely due to the high number of data points we have for Nugget. 
 
 ```{r wADKE conversion, echo=TRUE, warning=FALSE}
 # convert to SPDF to convert to sf object for plotting in ggplot
@@ -240,8 +237,9 @@ nugget.sf <- st_as_sf(nugget_df, coords = c("utm_easting","utm_northing")) %>% s
 akde.summary <- summary(wAKDE.nugget)
 akde.summary[["CI"]][3]
 ```
+The 95% KDE from before estimated the home range at 9.36 ha which is slightly smaller but very similar to the ctmm 95% home range estimation. Let's see how the ctmm home range fits on Emerald Hill. 
 
-```{r ggplot wADKE, echo=TRUE, fig.height=8, fig.width=10, message=FALSE, warning=FALSE, fig.align='center'}
+```{r ggplot wADKE, echo=FALSE, fig.align='center', fig.height=8, fig.width=10, message=FALSE, warning=FALSE}
 # ggplot for akde
 ctmm.akde.1 <- ggplot() + geom_spatial_rgb(data = emerald.hill, aes(x=x, y=y, r=red, g=green, b=blue)) +
   geom_point(data=mcp.points, aes(x=x, y=y), color = "lightgray")  +
@@ -272,6 +270,8 @@ ctmm.akde.1 + ctmm.akde.2
 ```
 
 ## Comparison of Methods 
+
+Lastly, let's compare all the home range estimates used in this exercise. 
 
 ```{r comparison graphs, include=FALSE}
 location.plot <- ggplot() + theme_bw() +
@@ -314,7 +314,7 @@ ctmm.akde.3
 ```
 
 
-```{r comparison, echo=TRUE, fig.height=8, fig.width=10, message=FALSE, warning=FALSE, fig.align='center'}
+```{r comparison, echo=FALSE, fig.align='center', fig.height=8, fig.width=10, message=FALSE, warning=FALSE}
 location.plot + mcp.plot.2 + kde.only.plot.2 + ctmm.akde.3
 ```
 
